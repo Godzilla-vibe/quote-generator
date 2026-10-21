@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Quote Generator</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --card: #16213e;
+      --text: #ffffff;
+      --muted: #a0a0a0;
+      --accent: #0f3460;
+      --accent-hover: #e94560;
+      --border: #2a2a4a;
+    }
+    body.light {
+      --bg: #f0f2f5;
+      --card: #ffffff;
+      --text: #1a1a2e;
+      --muted: #555555;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 18px 12px 50px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    h1 { margin: 12px 0 6px; font-size: 1.85rem; text-align: center; }
+    .subtitle { color: var(--muted); font-size: 0.88rem; margin-bottom: 14px; text-align: center; }
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 7px; justify-content: center;
+      margin-bottom: 14px; max-width: 780px;
+    }
+    .category-btn, button {
+      padding: 8px 14px; font-size: 0.88rem; border: none; border-radius: 8px;
+      cursor: pointer; background-color: var(--accent); color: white;
+      transition: background-color 0.2s, transform 0.15s;
+    }
+    .category-btn.active { background-color: var(--accent-hover); transform: scale(1.04); }
+    button:hover, .category-btn:hover { background-color: var(--accent-hover); }
+    #search-box {
+      width: 100%; max-width: 340px; padding: 9px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--card); color: var(--text);
+      font-size: 0.95rem; margin-bottom: 14px; outline: none;
+    }
+    #quote-box {
+      background-color: var(--card); padding: 30px 24px; border-radius: 16px;
+      max-width: 700px; width: 100%; box-shadow: 0 12px 35px rgba(0,0,0,0.18);
+      text-align: center; margin-bottom: 16px; min-height: 155px;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    #quote { font-size: 1.32rem; line-height: 1.55; margin-bottom: 12px; transition: opacity 0.3s; }
+    #quote.fade, #author.fade { opacity: 0; }
+    #author { font-size: 0.98rem; color: var(--muted); font-style: italic; transition: opacity 0.3s; }
+    #counter { font-size: 0.82rem; color: var(--muted); margin-top: 10px; }
+    .bottom-buttons {
+      display: flex; flex-wrap: wrap; gap: 9px; justify-content: center; margin-top: 6px;
+    }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 16px; padding: 22px;
+      width: 90%; max-width: 340px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    }
+    .modal h3 { margin-bottom: 16px; text-align: center; font-size: 1.15rem; }
+    .share-options {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .share-options button {
+      padding: 12px 8px; font-size: 0.9rem;
+    }
+    .modal-close {
+      margin-top: 16px; width: 100%; background: transparent;
+      border: 1px solid var(--border); color: var(--text);
+    }
+    .export-options {
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .favorites-section { margin-top: 32px; max-width: 700px; width: 100%; }
+    .favorites-section h2 { font-size: 1.12rem; margin-bottom: 11px; text-align: center; }
+    .fav-item {
+      background: var(--card); padding: 12px 15px; border-radius: 10px;
+      margin-bottom: 7px; font-size: 0.93rem; border-left: 4px solid var(--accent-hover); line-height: 1.4;
+    }
+    .fav-item small { color: var(--muted); display: block; margin-top: 4px; }
+    .empty-fav { text-align: center; color: var(--muted); font-size: 0.93rem; }
+    .shortcuts { margin-top: 22px; font-size: 0.78rem; color: var(--muted); text-align: center; }
+    @media (max-width: 520px) {
+      #quote { font-size: 1.12rem; }
+      h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Random Quote Generator</h1>
+  <p class="subtitle">Space = New Quote • C = Copy • F = Favorite</p>
+
+  <input type="text" id="search-box" placeholder="Search quotes by keyword...">
+
+  <div class="controls" id="categories">
+    <button class="category-btn active" data-cat="all">All</button>
+    <button class="category-btn" data-cat="freedom">Freedom</button>
+    <button class="category-btn" data-cat="politics">Politics</button>
+    <button class="category-btn" data-cat="life">Life</button>
+    <button class="category-btn" data-cat="motivation">Motivation</button>
+    <button class="category-btn" data-cat="leadership">Leadership</button>
+    <button class="category-btn" data-cat="philosophy">Philosophy</button>
+    <button class="category-btn" data-cat="witty">Witty</button>
+    <button class="category-btn" data-cat="science">Science</button>
+    <button class="category-btn" data-cat="courage">Courage</button>
+  </div>
+
+  <div id="quote-box">
+    <p id="quote">Loading...</p>
+    <p id="author"></p>
+    <div id="counter"></div>
+  </div>
+
+  <div class="bottom-buttons">
+    <button id="new-quote">New Quote</button>
+    <button id="copy-btn">Copy</button>
+    <button id="fav-btn">♥ Favorite</button>
+    <button id="share-btn">Share</button>
+    <button id="auto-btn">▶ Auto</button>
+    <button id="theme-btn">☀️ Light</button>
+    <button id="export-btn">Export</button>
+  </div>
+
+  <div class="modal-overlay" id="share-modal">
+    <div class="modal">
+      <h3>Share Quote</h3>
+      <div class="share-options">
+        <button id="share-x">X / Twitter</button>
+        <button id="share-wa">WhatsApp</button>
+        <button id="share-reddit">Reddit</button>
+        <button id="share-fb">Facebook</button>
+        <button id="share-discord">Discord</button>
+        <button id="share-arattai">Arattai</button>
+        <button id="share-system" style="grid-column: span 2;">Native Share (Android/iOS)</button>
+      </div>
+      <button class="modal-close" id="close-share">Close</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal">
+      <h3>Export Favorites</h3>
+      <div class="export-options">
+        <button id="export-txt">Download as TXT</button>
+        <button id="export-json">Download as JSON</button>
+        <button id="export-csv">Download as CSV</button>
+        <button id="export-md">Download as Markdown</button>
+      </div>
+      <button class="modal-close" id="close-export">Close</button>
+    </div>
+  </div>
+
+  <div class="favorites-section">
+    <h2>Saved Favorites</h2>
+    <div id="favorites-list">
+      <p class="empty-fav">No favorites yet. Click ♥ to save quotes.</p>
+    </div>
+  </div>
+
+  <p class="shortcuts">Keyboard: Space = New Quote | C = Copy | F = Favorite</p>
+
+  <script>
+    const allQuotes = [
+      { text: "Give me blood, and I shall give you freedom!", author: "Netaji Subhash Chandra Bose", category: "freedom" },
+      { text: "Freedom is not given, it is taken.", author: "Netaji Subhash Chandra Bose", category: "freedom" },
+      { text: "One individual may die for an idea, but that idea will, after his death, incarnate itself in a thousand lives.", author: "Netaji Subhash Chandra Bose", category: "freedom" },
+      { text: "It is our duty to pay for our liberty with our own blood.", author: "Netaji Subhash Chandra Bose", category: "freedom" },
+      { text: "No real change in history has ever been achieved by discussions.", author: "Netaji Subhash Chandra Bose", category: "freedom" },
+      { text: "Nationalism is inspired by the highest ideals of the human race.", author: "Netaji Subhash Chandra Bose", category: "freedom" },
+      { text: "Freedom is not worth having if it does not include the freedom to make mistakes.", author: "Netaji Subhash Chandra Bose", category: "freedom" },
+      { text: "Young men and women are to build up a strong character. A nation's greatness is reflected in the character of the people.", author: "Sardar Vallabhbhai Patel", category: "freedom" },
+      { text: "Give me liberty, or give me death!", author: "Patrick Henry", category: "freedom" },
+      { text: "Those who would give up essential liberty to purchase a little temporary safety deserve neither liberty nor safety.", author: "Benjamin Franklin", category: "freedom" },
+      { text: "Freedom is never more than one generation away from extinction.", author: "Ronald Reagan", category: "freedom" },
+      { text: "The tree of liberty must be refreshed from time to time with the blood of patriots and tyrants.", author: "Thomas Jefferson", category: "freedom" },
+      { text: "I disapprove of what you say, but I will defend to the death your right to say it.", author: "Evelyn Beatrice Hall", category: "freedom" },
+      { text: "Liberty, when it begins to take root, is a plant of rapid growth.", author: "George Washington", category: "freedom" },
+      { text: "The price of freedom is eternal vigilance.", author: "Thomas Jefferson", category: "freedom" },
+
+      { text: "You can't keep snakes in your backyard and expect them only to bite your neighbors.", author: "Hillary Rodham Clinton", category: "politics" },
+      { text: "The problem with socialism is that you eventually run out of other people's money.", author: "Margaret Thatcher", category: "politics" },
+      { text: "The useful idiots... when they get disillusioned, they become the worst enemies.", author: "Yuri Bezmenov", category: "politics" },
+      { text: "The secret of political bargaining is to look more strong than what you really are.", author: "Netaji Subhash Chandra Bose", category: "politics" },
+      { text: "Power tends to corrupt, and absolute power corrupts absolutely.", author: "Lord Acton", category: "politics" },
+      { text: "The further a society drifts from the truth, the more it will hate those who speak it.", author: "George Orwell", category: "politics" },
+      { text: "In a time of universal deceit, telling the truth is a revolutionary act.", author: "George Orwell", category: "politics" },
+      { text: "The best argument against democracy is a five-minute conversation with the average voter.", author: "Winston Churchill", category: "politics" },
+      { text: "Democracy is the worst form of government, except for all the others.", author: "Winston Churchill", category: "politics" },
+      { text: "When the people fear the government, there is tyranny. When the government fears the people, there is liberty.", author: "Thomas Jefferson", category: "politics" },
+      { text: "The ballot is stronger than the bullet.", author: "Abraham Lincoln", category: "politics" },
+      { text: "A government big enough to give you everything you want is strong enough to take everything you have.", author: "Thomas Jefferson", category: "politics" },
+
+      { text: "The only way to do great work is to love what you do.", author: "Steve Jobs", category: "life" },
+      { text: "Life is what happens when you're busy making other plans.", author: "John Lennon", category: "life" },
+      { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein", category: "life" },
+      { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt", category: "life" },
+      { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius", category: "life" },
+      { text: "Success is not final, failure is not fatal: It is the courage to continue that counts.", author: "Winston Churchill", category: "life" },
+      { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt", category: "life" },
+      { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb", category: "life" },
+      { text: "Life loses half its interest if there is no struggle.", author: "Netaji Subhash Chandra Bose", category: "life" },
+      { text: "The unexamined life is not worth living.", author: "Socrates", category: "life" },
+      { text: "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author: "Aristotle", category: "life" },
+      { text: "Do not go where the path may lead, go instead where there is no path and leave a trail.", author: "Ralph Waldo Emerson", category: "life" },
+      { text: "In three words I can sum up everything I've learned about life: it goes on.", author: "Robert Frost", category: "life" },
+      { text: "Be yourself; everyone else is already taken.", author: "Oscar Wilde", category: "life" },
+      { text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky", category: "life" },
+      { text: "Whether you think you can or you think you can't, you're right.", author: "Henry Ford", category: "life" },
+      { text: "The mind is everything. What you think you become.", author: "Buddha", category: "life" },
+      { text: "It is during our darkest moments that we must focus to see the light.", author: "Aristotle", category: "life" },
+
+      { text: "The journey of a thousand miles begins with one step.", author: "Lao Tzu", category: "motivation" },
+      { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson", category: "motivation" },
+      { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Unknown", category: "motivation" },
+      { text: "Dream big and dare to fail.", author: "Norman Vaughan", category: "motivation" },
+      { text: "It always seems impossible until it's done.", author: "Nelson Mandela", category: "motivation" },
+      { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe", category: "motivation" },
+      { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown", category: "motivation" },
+      { text: "Great things never come from comfort zones.", author: "Unknown", category: "motivation" },
+      { text: "Dream it. Wish it. Do it.", author: "Unknown", category: "motivation" },
+      { text: "Success doesn't just find you. You have to go out and get it.", author: "Unknown", category: "motivation" },
+      { text: "The only limit to our realization of tomorrow is our doubts of today.", author: "Franklin D. Roosevelt", category: "motivation" },
+      { text: "Do something today that your future self will thank you for.", author: "Unknown", category: "motivation" },
+
+      { text: "A leader is one who knows the way, goes the way, and shows the way.", author: "John C. Maxwell", category: "leadership" },
+      { text: "The greatest leader is not necessarily the one who does the greatest things. He is the one that gets the people to do the greatest things.", author: "Ronald Reagan", category: "leadership" },
+      { text: "Leadership is the capacity to translate vision into reality.", author: "Warren Bennis", category: "leadership" },
+      { text: "A genuine leader is not a searcher for consensus but a molder of consensus.", author: "Martin Luther King Jr.", category: "leadership" },
+      { text: "The function of leadership is to produce more leaders, not more followers.", author: "Ralph Nader", category: "leadership" },
+      { text: "To handle yourself, use your head; to handle others, use your heart.", author: "Eleanor Roosevelt", category: "leadership" },
+      { text: "A good leader takes a little more than his share of the blame, a little less than his share of the credit.", author: "Arnold H. Glasow", category: "leadership" },
+      { text: "Leadership is not about being in charge. It is about taking care of those in your charge.", author: "Simon Sinek", category: "leadership" },
+      { text: "The best leaders are those most interested in surrounding themselves with assistants and associates smarter than they are.", author: "John C. Maxwell", category: "leadership" },
+      { text: "A leader is best when people barely know he exists.", author: "Lao Tzu", category: "leadership" },
+
+      { text: "The only true wisdom is in knowing you know nothing.", author: "Socrates", category: "philosophy" },
+      { text: "I think, therefore I am.", author: "René Descartes", category: "philosophy" },
+      { text: "He who has a why to live can bear almost any how.", author: "Friedrich Nietzsche", category: "philosophy" },
+      { text: "Man is condemned to be free.", author: "Jean-Paul Sartre", category: "philosophy" },
+      { text: "The unexamined life is not worth living.", author: "Socrates", category: "philosophy" },
+      { text: "We are what we repeatedly do.", author: "Aristotle", category: "philosophy" },
+      { text: "Happiness depends upon ourselves.", author: "Aristotle", category: "philosophy" },
+      { text: "No man ever steps in the same river twice.", author: "Heraclitus", category: "philosophy" },
+      { text: "The only thing I know is that I know nothing.", author: "Socrates", category: "philosophy" },
+      { text: "To be is to do.", author: "Immanuel Kant", category: "philosophy" },
+      { text: "God is dead.", author: "Friedrich Nietzsche", category: "philosophy" },
+      { text: "The mind is furnished with ideas by experience alone.", author: "John Locke", category: "philosophy" },
+
+      { text: "Social media made y'all way too comfortable with disrespecting people and not getting punched in the face for it.", author: "Mike Tyson", category: "witty" },
+      { text: "A diplomat is a man who thinks twice before he says nothing.", author: "Edward Heath", category: "witty" },
+      { text: "The trouble with market research is that people don't think what they feel, they don't say what they think and they don't do what they say.", author: "David Ogilvy", category: "witty" },
+      { text: "When a clown moves into a palace, he doesn’t become a king; the palace becomes a circus.", author: "Elizabeth Bangs", category: "witty" },
+      { text: "There is no problem so bad that you can't make it worse.", author: "Chris Hadfield", category: "witty" },
+      { text: "I can resist everything except temptation.", author: "Oscar Wilde", category: "witty" },
+      { text: "Always forgive your enemies; nothing annoys them so much.", author: "Oscar Wilde", category: "witty" },
+      { text: "I am so clever that sometimes I don't understand a single word of what I am saying.", author: "Oscar Wilde", category: "witty" },
+      { text: "A cynic is a man who knows the price of everything and the value of nothing.", author: "Oscar Wilde", category: "witty" },
+      { text: "Some cause happiness wherever they go; others whenever they go.", author: "Oscar Wilde", category: "witty" },
+      { text: "Two things are infinite: the universe and human stupidity; and I'm not sure about the universe.", author: "Albert Einstein", category: "witty" },
+      { text: "I never travel without my diary. One should always have something sensational to read in the train.", author: "Oscar Wilde", category: "witty" },
+
+      { text: "That’s one small step for man, one giant leap for mankind.", author: "Neil Armstrong", category: "science" },
+      { text: "Water is the driving force of all of nature.", author: "Leonardo da Vinci", category: "science" },
+      { text: "The important thing is not to stop questioning.", author: "Albert Einstein", category: "science" },
+      { text: "Somewhere, something incredible is waiting to be known.", author: "Carl Sagan", category: "science" },
+      { text: "We are a way for the cosmos to know itself.", author: "Carl Sagan", category: "science" },
+      { text: "The universe is under no obligation to make sense to you.", author: "Neil deGrasse Tyson", category: "science" },
+      { text: "Look up at the stars and not down at your feet.", author: "Stephen Hawking", category: "science" },
+      { text: "The good thing about science is that it's true whether or not you believe in it.", author: "Neil deGrasse Tyson", category: "science" },
+      { text: "Nothing in life is to be feared, it is only to be understood.", author: "Marie Curie", category: "science" },
+
+      { text: "Courage is not the absence of fear, but the triumph over it.", author: "Nelson Mandela", category: "courage" },
+      { text: "You gain strength, courage and confidence by every experience in which you really stop to look fear in the face.", author: "Eleanor Roosevelt", category: "courage" },
+      { text: "Fortune favors the bold.", author: "Virgil", category: "courage" },
+      { text: "It takes a great deal of bravery to stand up to our enemies, but just as much to stand up to our friends.", author: "J.K. Rowling", category: "courage" },
+      { text: "Courage is resistance to fear, mastery of fear, not absence of fear.", author: "Mark Twain", category: "courage" },
+      { text: "The only thing we have to fear is fear itself.", author: "Franklin D. Roosevelt", category: "courage" },
+      { text: "Fear is a reaction. Courage is a decision.", author: "Winston Churchill", category: "courage" },
+      { text: "He who is not courageous enough to take risks will accomplish nothing in life.", author: "Muhammad Ali", category: "courage" }
+    ];
+
+    let currentCategory = "all";
+    let currentQuote = null;
+    let autoInterval = null;
+    let isAuto = false;
+    let favorites = JSON.parse(localStorage.getItem("quoteFavorites") || "[]");
+    let searchTerm = "";
+
+    const quoteEl = document.getElementById("quote");
+    const authorEl = document.getElementById("author");
+    const counterEl = document.getElementById("counter");
+    const newBtn = document.getElementById("new-quote");
+    const copyBtn = document.getElementById("copy-btn");
+    const favBtn = document.getElementById("fav-btn");
+    const shareBtn = document.getElementById("share-btn");
+    const autoBtn = document.getElementById("auto-btn");
+    const themeBtn = document.getElementById("theme-btn");
+    const exportBtn = document.getElementById("export-btn");
+    const favList = document.getElementById("favorites-list");
+    const searchBox = document.getElementById("search-box");
+    const shareModal = document.getElementById("share-modal");
+    const exportModal = document.getElementById("export-modal");
+
+    function getFilteredQuotes() {
+      let list = currentCategory === "all" ? allQuotes : allQuotes.filter(q => q.category === currentCategory);
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        list = list.filter(q => q.text.toLowerCase().includes(term) || q.author.toLowerCase().includes(term));
+      }
+      return list;
+    }
+
+    function showRandomQuote() {
+      const list = getFilteredQuotes();
+      if (list.length === 0) {
+        quoteEl.textContent = "No quotes found.";
+        authorEl.textContent = "";
+        counterEl.textContent = "";
+        return;
+      }
+      quoteEl.classList.add("fade");
+      authorEl.classList.add("fade");
+      setTimeout(() => {
+        const random = list[Math.floor(Math.random() * list.length)];
+        currentQuote = random;
+        quoteEl.textContent = '"' + random.text + '"';
+        authorEl.textContent = "— " + random.author;
+        counterEl.textContent = list.length + " quotes in this view";
+        quoteEl.classList.remove("fade");
+        authorEl.classList.remove("fade");
+      }, 250);
+    }
+
+    function getQuoteText() {
+      if (!currentQuote) return "";
+      return '"' + currentQuote.text + '" — ' + currentQuote.author;
+    }
+
+    function copyQuote() {
+      const text = getQuoteText();
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => copyBtn.textContent = "Copy", 1400);
+      });
+    }
+
+    function toggleFavorite() {
+      if (!currentQuote) return;
+      const index = favorites.findIndex(f => f.text === currentQuote.text);
+      if (index === -1) {
+        favorites.push(currentQuote);
+        favBtn.textContent = "♥ Saved";
+        setTimeout(() => favBtn.textContent = "♥ Favorite", 1200);
+      } else {
+        favorites.splice(index, 1);
+      }
+      localStorage.setItem("quoteFavorites", JSON.stringify(favorites));
+      renderFavorites();
+    }
+
+    function renderFavorites() {
+      if (favorites.length === 0) {
+        favList.innerHTML = '<p class="empty-fav">No favorites yet. Click ♥ to save quotes.</p>';
+        return;
+      }
+      favList.innerHTML = favorites.map(f => 
+        '<div class="fav-item">"' + f.text + '"<small>— ' + f.author + '</small></div>'
+      ).join("");
+    }
+
+    function shareOnX() {
+      const text = encodeURIComponent(getQuoteText());
+      window.open("https://twitter.com/intent/tweet?text=" + text, "_blank");
+      shareModal.classList.remove("show");
+    }
+    function shareOnWhatsApp() {
+      const text = encodeURIComponent(getQuoteText());
+      window.open("https://wa.me/?text=" + text, "_blank");
+      shareModal.classList.remove("show");
+    }
+    function shareOnReddit() {
+      const title = encodeURIComponent(currentQuote.text.substring(0, 80));
+      const text = encodeURIComponent(getQuoteText());
+      window.open("https://www.reddit.com/submit?title=" + title + "&text=" + text, "_blank");
+      shareModal.classList.remove("show");
+    }
+    function shareOnFacebook() {
+      const quote = encodeURIComponent(getQuoteText());
+      window.open("https://www.facebook.com/sharer/sharer.php?quote=" + quote, "_blank");
+      shareModal.classList.remove("show");
+    }
+    function shareOnDiscord() {
+      navigator.clipboard.writeText(getQuoteText()).then(() => {
+        alert("Quote copied!\n\nNow open Discord and paste it (Ctrl+V).");
+        shareModal.classList.remove("show");
+      });
+    }
+    function shareOnArattai() {
+      navigator.clipboard.writeText(getQuoteText()).then(() => {
+        alert("Quote copied!\n\nNow open Arattai and paste it into any chat.");
+        shareModal.classList.remove("show");
+      });
+    }
+    function shareNative() {
+      if (navigator.share) {
+        navigator.share({
+          title: "Quote",
+          text: getQuoteText()
+        }).then(() => shareModal.classList.remove("show"))
+          .catch(() => {});
+      } else {
+        alert("Native share is not supported on this device/browser.");
+      }
+    }
+
+    function downloadFile(content, filename, type) {
+      const blob = new Blob([content], { type: type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportTXT() {
+      if (favorites.length === 0) return alert("No favorites yet.");
+      const content = favorites.map(f => '"' + f.text + '" — ' + f.author).join("\n\n");
+      downloadFile(content, "favorite-quotes.txt", "text/plain");
+      exportModal.classList.remove("show");
+    }
+    function exportJSON() {
+      if (favorites.length === 0) return alert("No favorites yet.");
+      downloadFile(JSON.stringify(favorites, null, 2), "favorite-quotes.json", "application/json");
+      exportModal.classList.remove("show");
+    }
+    function exportCSV() {
+      if (favorites.length === 0) return alert("No favorites yet.");
+      let csv = "Quote,Author,Category\n";
+      favorites.forEach(f => {
+        csv += '"' + f.text.replace(/"/g, '""') + '","' + f.author + '","' + f.category + '"\n';
+      });
+      downloadFile(csv, "favorite-quotes.csv", "text/csv");
+      exportModal.classList.remove("show");
+    }
+    function exportMarkdown() {
+      if (favorites.length === 0) return alert("No favorites yet.");
+      const content = favorites.map(f => '> "' + f.text + '"\n>\n> — **' + f.author + '**\n').join("\n");
+      downloadFile(content, "favorite-quotes.md", "text/markdown");
+      exportModal.classList.remove("show");
+    }
+
+    function toggleAuto() {
+      if (isAuto) {
+        clearInterval(autoInterval);
+        autoBtn.textContent = "▶ Auto";
+        isAuto = false;
+      } else {
+        autoInterval = setInterval(showRandomQuote, 7000);
+        autoBtn.textContent = "⏸ Pause";
+        isAuto = true;
+      }
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+      const isLight = document.body.classList.contains("light");
+      themeBtn.textContent = isLight ? "🌙 Dark" : "☀️ Light";
+      localStorage.setItem("quoteTheme", isLight ? "light" : "dark");
+    }
+
+    newBtn.addEventListener("click", showRandomQuote);
+    copyBtn.addEventListener("click", copyQuote);
+    favBtn.addEventListener("click", toggleFavorite);
+    autoBtn.addEventListener("click", toggleAuto);
+    themeBtn.addEventListener("click", toggleTheme);
+
+    shareBtn.addEventListener("click", () => shareModal.classList.add("show"));
+    exportBtn.addEventListener("click", () => exportModal.classList.add("show"));
+
+    document.getElementById("close-share").addEventListener("click", () => shareModal.classList.remove("show"));
+    document.getElementById("close-export").addEventListener("click", () => exportModal.classList.remove("show"));
+
+    document.getElementById("share-x").addEventListener("click", shareOnX);
+    document.getElementById("share-wa").addEventListener("click", shareOnWhatsApp);
+    document.getElementById("share-reddit").addEventListener("click", shareOnReddit);
+    document.getElementById("share-fb").addEventListener("click", shareOnFacebook);
+    document.getElementById("share-discord").addEventListener("click", shareOnDiscord);
+    document.getElementById("share-arattai").addEventListener("click", shareOnArattai);
+    document.getElementById("share-system").addEventListener("click", shareNative);
+
+    document.getElementById("export-txt").addEventListener("click", exportTXT);
+    document.getElementById("export-json").addEventListener("click", exportJSON);
+    document.getElementById("export-csv").addEventListener("click", exportCSV);
+    document.getElementById("export-md").addEventListener("click", exportMarkdown);
+
+    searchBox.addEventListener("input", () => {
+      searchTerm = searchBox.value;
+      showRandomQuote();
+    });
+
+    document.querySelectorAll(".category-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".category-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentCategory = btn.dataset.cat;
+        showRandomQuote();
+      });
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT") return;
+      if (e.code === "Space") { e.preventDefault(); showRandomQuote(); }
+      if (e.key.toLowerCase() === "c") copyQuote();
+      if (e.key.toLowerCase() === "f") toggleFavorite();
+    });
+
+    shareModal.addEventListener("click", (e) => {
+      if (e.target === shareModal) shareModal.classList.remove("show");
+    });
+    exportModal.addEventListener("click", (e) => {
+      if (e.target === exportModal) exportModal.classList.remove("show");
+    });
+
+    if (localStorage.getItem("quoteTheme") === "light") {
+      document.body.classList.add("light");
+      themeBtn.textContent = "🌙 Dark";
+    }
+    renderFavorites();
+    showRandomQuote();
+  </script>
+</body>
+</html>
